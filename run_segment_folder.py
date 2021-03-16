@@ -9,8 +9,8 @@ from torchvision import transforms
 
 import config
 from DLBio.helpers import check_mkdir
-from DLBio.pt_model_class import CellSegmentationModel
-#from patchwise_inference import CellSegmentationObject
+#from DLBio.pt_model_class import CellSegmentationModel
+from patchwise_inference import CellSegmentationObject
 from DLBio.pt_training import set_device
 from DLBio.pytorch_helpers import get_device
 from ds_simulated_data import load_image, NORMALIZE
@@ -33,16 +33,13 @@ def run(options):
     model = torch.load(options.model_path)
     model = model.eval().to(device)
 
-    model_obj = CellSegmentationModel(
+    model_obj = CellSegmentationObject(
         device,
-        'Model',
-        None,
-        fast_prediction=True,
-        batch_size=24,
+        model,
+        [options.crop_size, options.crop_size],
+        2,
         normalization=NORMALIZE
     )
-    model_obj.cnn = model
-    model_obj.set_input_shape([-1, options.crop_size, options.crop_size])
 
     check_mkdir(options.out_folder)
 
@@ -55,7 +52,8 @@ def run(options):
 
         # NOTE: possible error source, the default kwargs are used here
         image = load_image(im_path)
-        pred = model_obj.do_task(image, False)
+
+        pred = model_obj.do_task(image)[..., -1]
 
         assert pred.min() >= 0. and pred.max() <= 1., 'no softmax output'
         pred_image = (255. * pred).astype('uint8')
